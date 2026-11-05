@@ -126,22 +126,67 @@ function walletGate(keyName) {
       };
     };
 
-    const chooser = () => {
-      card(`<img src="/logo.png" alt="Qripto" width="64" height="64" style="border-radius:16px"><h1>Qripto</h1><div class="muted">Pay any UPI QR with USDC.</div><div class="muted">Your wallet is created on this device. Nobody, including us, can recover it for you.</div>
-        <button id="c" class="full">Create new wallet</button><button id="i" class="full alt">I have a wallet (import)</button>
-        <div class="muted" style="margin-top:12px">Google / Apple login needs a key-management provider (Privy, Web3Auth…) and is not connected in this build.</div>
-        ${hasVault ? '<button id="b" class="full dark">Back to unlock</button>' : ''}`);
-      o.querySelector('#c').onclick = create; o.querySelector('#i').onclick = imp;
+    const COUNTRIES = [['🇮🇳', 'India', '₹ · INR', true], ['🇮🇩', 'Indonesia', 'Rp · IDR'], ['🇧🇷', 'Brazil', 'R$ · BRL'], ['🇦🇷', 'Argentina', '$ · ARS'], ['🇳🇬', 'Nigeria', '₦ · NGN'], ['🇨🇴', 'Colombia', '$ · COP'], ['🇵🇪', 'Peru', 'S/ · PEN'], ['🇳🇵', 'Nepal', 'रू · NPR']];
+
+    // Existing unencrypted wallet from an older version: keep the same address, add a password so Lock works.
+    const protect = (pk) => {
+      const w = new ethers.Wallet(pk), prof = getProfile(w.address);
+      card(`<h1>Secure your wallet</h1><div class="muted">Your existing wallet keeps the same address and funds. Set a password so it can be locked and unlocked on this device.</div>
+        <label>Display name</label><input id="nm" maxlength="30">
+        <label>Password (min 8 chars)</label><input id="pw" type="password" autocomplete="new-password">
+        <button id="ok" class="full">Set password & continue</button><div id="e" class="err"></div>`);
+      o.querySelector('#nm').value = prof.name || '';
+      const btn = o.querySelector('#ok');
+      btn.onclick = () => {
+        const pw = o.querySelector('#pw').value, name = o.querySelector('#nm').value.trim();
+        if (pw.length < 8) { o.querySelector('#e').textContent = 'Password must be at least 8 characters'; return; }
+        finish(w, name || prof.name || 'Me', prof.avatar || AVATARS[0], pw, btn, 'Set password & continue');
+      };
+    };
+
+    const signin = () => {
+      const soon = ['Continue with Google', 'Email address', 'Phone number', 'Passkey'].map((l) => `<button class="full" disabled style="background:#fff;text-align:left;margin-top:8px">${l} <span class="muted" style="float:right">soon</span></button>`).join('');
+      card(`<div style="display:flex;align-items:center;gap:8px"><img src="/logo.png" width="28" height="28" style="border-radius:8px" alt=""><strong style="font-size:20px">Sign in</strong></div>
+        <button id="c" class="full" style="margin-top:14px">Create new wallet</button><button id="i" class="full alt">I have a wallet (import)</button>
+        <div class="muted" style="margin:14px 0 0">Social login needs a key-management provider and is not connected yet:</div>${soon}
+        ${hasVault ? '<button id="b" class="full dark">Back to unlock</button>' : ''}
+        <button id="bk" class="full dark">Back</button>`);
+      o.querySelector('#c').onclick = create; o.querySelector('#i').onclick = imp; o.querySelector('#bk').onclick = country;
       if (hasVault) o.querySelector('#b').onclick = unlock;
     };
-    hasVault ? unlock() : chooser();
+    const chooser = signin;
+
+    const country = () => {
+      const saved = prefs().country || 'India';
+      card(`<h1>Where do we pay out?</h1><div class="muted">Pick where your merchant gets local cash.</div><div id="cl" style="margin-top:10px"></div>
+        <button id="cgo" class="full dark">Continue →</button>`);
+      const box = o.querySelector('#cl');
+      for (const [flag, name, cur, live] of COUNTRIES) {
+        const b = document.createElement('button');
+        b.style.cssText = `display:flex;width:100%;justify-content:space-between;align-items:center;text-align:left;margin-bottom:10px;background:${name === saved ? 'var(--orange)' : '#fff'}`;
+        b.disabled = !live; b.textContent = `${flag}  ${name} · ${cur}${live ? '' : ' — soon'}`;
+        box.append(b);
+      }
+      o.querySelector('#cgo').onclick = () => { setPrefs({ country: 'India', currency: 'INR' }); signin(); };
+    };
+
+    const landing = () => {
+      card(`<img src="/logo.png" width="72" height="72" style="border-radius:18px" alt="Qripto">
+        <h1 style="font-size:44px;line-height:1;margin:18px 0 6px">SCAN.<br>PAY.<br><i>Anywhere.</i></h1>
+        <div class="muted" style="font-size:16px">Scan any local payment QR and pay in USDC. The merchant gets local cash.</div>
+        <button id="ok" class="full dark" style="margin-top:24px">Log in →</button>`);
+      o.querySelector('#ok').onclick = country;
+    };
+
+    const legacy = localStorage.getItem(keyName);
+    if (legacy) protect(legacy); else hasVault ? unlock() : landing();
   });
 }
 
 async function boot(keyName) {
   const cfg = await api('/api/config');
   const provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { cacheTimeout: -1 });
-  let pk = localStorage.getItem(keyName) /* legacy unencrypted key */ || sessionStorage.getItem(sessKey(keyName));
+  let pk = sessionStorage.getItem(sessKey(keyName));
   if (!pk) pk = await walletGate(keyName);
   sessionStorage.setItem(sessKey(keyName), pk);
   const wallet = new ethers.Wallet(pk, provider);

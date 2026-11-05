@@ -10,12 +10,12 @@ async function marketRate() {
   return v;
 }
 
-// Payers pay the market rate plus `spreadPct` (the LP's margin).
+// Payers get the market rate minus `spreadPct` (the LP's margin): fewer INR per USDC.
 async function getRate({ fallback, spreadPct = 1 }) {
   if (cached && Date.now() - cached.at < TTL_MS) return cached.value;
   let market = fallback, source = 'fallback';
   try { market = await marketRate(); source = 'coingecko'; } catch { /* keep fallback */ }
-  const value = { rate: Number((market * (1 + spreadPct / 100)).toFixed(2)), market, spreadPct, source };
+  const value = { rate: Number((market * (1 - spreadPct / 100)).toFixed(2)), market, spreadPct, source };
   cached = { at: Date.now(), value };
   return value;
 }

@@ -10,6 +10,7 @@ const providers = require('./providers');
 const ESCROW_ABI = [
   'function orders(uint256) view returns (address payer,address lp,uint256 amount,uint256 inrPaise,bytes32 upiHash,uint64 acceptedAt,uint8 status,uint64 provenAt,bytes32 utrHash,uint256 lockedStake)',
   'function nextId() view returns (uint256)',
+  'function stake(address) view returns (uint256)',
   'function resolve(uint256 id, bool payLp)',
 ];
 
@@ -41,6 +42,8 @@ async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbac
   const attestor = new ethers.Wallet(attestorKey);
   const contract = new ethers.Contract(escrow, ESCROW_ABI, provider);
   const meta = new Map(); // orderId -> { upi, name }
+  const quotes = new Map(); // lp address -> { rate, at } (INR per USDC the LP will honor)
+  const QUOTE_TTL_MS = 5 * 60_000;
   const utrs = new Map(); // orderId -> plain UTR, shown only to the payer
   const root = path.join(__dirname, '..');
   const files = {
@@ -52,6 +55,7 @@ async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbac
     '/emv.js': ['public/emv.js', 'text/javascript'],
     '/manifest.webmanifest': ['public/manifest.webmanifest', 'application/manifest+json'],
     '/sw.js': ['public/sw.js', 'text/javascript'],
+    '/qr.js': ['node_modules/qrcode-generator/dist/qrcode.js', 'text/javascript'],
     '/logo.png': ['public/logo.png', 'image/png'],
     '/icon.svg': ['public/icon.svg', 'image/svg+xml'],
     '/common.js': ['public/common.js', 'text/javascript'],
@@ -77,7 +81,29 @@ async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbac
       }
       if (url.pathname === '/api/config') {
         const r = await getRate({ fallback: fallbackRate, spreadPct });
-        return send(res, 200, { rpc, escrow, usdc, chainId, rate: r.rate, market: r.market, rateSource: r.source, spreadPct, faucet: enableFaucet, fromBlock, devArbiter: !!arbiterKey });
+        // Best rate for the payer = highest rate that at least one staked LP has committed to honor.
+        let best = null;
+        for (const [lp, q] of quotes) {
+          if (Date.now() - q.at > QUOTE_TTL_MS) { quotes.delete(lp); continue; }
+          if ((await contract.stake(lp)) === 0n) continue;
+          if (!best || q.rate > best.rate) best = { lp, rate: q.rate };
+        }
+        const rate = best ? best.rate : r.rate;
+        return send(res, 200, { rpc, escrow, usdc, chainId, rate, market: r.market, rateSource: best ? 'best LP offer' : r.source, spreadPct: Number(((1 - rate / r.market) * 100).toFixed(2)), offers: quotes.size, faucet: enableFaucet, fromBlock, devArbiter: !!arbiterKey });
+      }
+
+      // LP publishes the best INR/USDC rate it will honor (signed, refreshed every few minutes).
+      if (url.pathname === '/api/quote' && req.method === 'POST') {
+        const { rate, ts, sig } = await body(req);
+        const r = await getRate({ fallback: fallbackRate, spreadPct });
+        const v = Number(rate);
+        if (!(v > 0) || v < r.market * 0.8 || v > r.market * 1.02) return send(res, 400, { error: 'rate_out_of_range' });
+        if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return send(res, 403, { error: 'stale' });
+        let lp;
+        try { lp = ethers.verifyMessage(`upipay:quote:${v}:${ts}`, String(sig)).toLowerCase(); } catch { return send(res, 403, { error: 'bad_signature' }); }
+        if ((await contract.stake(lp)) === 0n) return send(res, 400, { error: 'stake_first' });
+        quotes.set(lp, { rate: v, at: Date.now() });
+        return send(res, 200, { ok: true });
       }
 
       // Local-chain faucet only

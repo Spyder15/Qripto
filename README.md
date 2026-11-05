@@ -12,6 +12,8 @@ Payer locks USDC in escrow → an LP pays the merchant in INR via UPI → proof 
 
 Wallet: create (12-word phrase) or import (phrase / private key), protected by a password; the encrypted keystore lives in this browser. Unlock on return to see balance and history (read from chain). `/profile` has name, avatar, saved merchants, recovery phrase export, password change. Google/Apple login is not connected (needs Privy/Web3Auth).
 
+Rates: LPs publish the INR/USDC rate they honor (`/lp` or the bot, `LP_SPREAD_PCT`); payers automatically get the highest offer from a staked LP, otherwise market minus spread. Also: receive QR, Hindi toggle, order notifications, auto-lock (Settings).
+
 Pages: `/` payer, `/profile`, `/lp`, `/arbiter`, `/receipt?id=N`. Chain resets on every restart.
 
 ## Base Sepolia

@@ -56,6 +56,7 @@
 <script src="/ethers.js"></script>
 <script src="/jsqr.js"></script>
 <script src="/emv.js"></script>
+<script src="/qr.js"></script>
 <script src="/common.js"></script>
 <script>
 let ctx, merchant = null;
@@ -177,10 +178,22 @@ function walletSheet() {
     c.append(head); head.querySelector('#wsAddr').textContent = ctx.wallet.address;
     head.querySelector('#wsBal').textContent = fmtUsdc(await ctx.usdc.balanceOf(ctx.wallet.address)) + ' USDC';
     item(c, 'Send', 'Transfer USDC to another address', () => { close(); sendSheet(); }, '↗');
-    item(c, 'Receive', 'Copy your address', async () => { await navigator.clipboard.writeText(ctx.wallet.address); alert('Address copied. Send USDC on this network only.'); }, '↙');
+    item(c, 'Receive', 'Show QR and address', () => { close(); receiveSheet(); }, '↙');
     item(c, 'Buy', ctx.cfg.faucet ? 'Testnet: get free test USDC' : 'Not available yet', async () => { if (!ctx.cfg.faucet) return; await api('/api/faucet', { address: ctx.wallet.address }); close(); refreshBalance(); }, '+');
     item(c, 'Transactions', 'Payment history', () => { location.href = '/profile'; });
     item(c, 'Manage wallet', 'Backup phrase, password', () => { location.href = '/profile'; });
+  });
+}
+function receiveSheet() {
+  sheet('Receive USDC', (c) => {
+    const qr = qrcode(0, 'M'); qr.addData(ctx.wallet.address); qr.make();
+    const box = document.createElement('div'); box.style.cssText = 'background:#fff;border:2px solid var(--ink);border-radius:16px;padding:12px;text-align:center';
+    box.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0, scalable: true });
+    box.querySelector('svg').style.cssText = 'width:100%;max-width:260px;height:auto';
+    const a = document.createElement('div'); a.style.cssText = 'word-break:break-all;font-weight:700;margin-top:10px'; a.textContent = ctx.wallet.address;
+    box.append(a); c.append(box);
+    const n = document.createElement('div'); n.className = 'muted'; n.style.margin = '10px 0'; n.textContent = 'Send only USDC on this network to this address.'; c.append(n);
+    item(c, 'Copy address', '', async () => { await navigator.clipboard.writeText(ctx.wallet.address); toast('Address copied'); }, '⧉');
   });
 }
 function sendSheet() {
@@ -211,13 +224,40 @@ function helpSheet() {
 function settingsSheet() {
   sheet('Settings', (c, close) => {
     item(c, 'Currency', 'Only INR payouts are live', () => {}, prefs().currency);
-    item(c, 'Language', 'More languages coming', () => {}, 'English');
+    item(c, 'Language', 'English / हिंदी', () => { setPrefs({ lang: prefs().lang === 'hi' ? 'en' : 'hi' }); location.reload(); }, prefs().lang === 'hi' ? 'हिंदी' : 'English');
+    const nt = item(c, 'Notifications', 'Alerts when a payment moves', async () => {
+      if (!prefs().notify && 'Notification' in window) await Notification.requestPermission();
+      setPrefs({ notify: !prefs().notify }); nt.textContent = prefs().notify ? 'On' : 'Off';
+    }, prefs().notify ? 'On' : 'Off');
+    const al = item(c, 'Auto-lock', 'Lock after inactivity', () => {
+      const opts = [5, 15, 30, 0], next = opts[(opts.indexOf(prefs().autoLockMin) + 1) % opts.length];
+      setPrefs({ autoLockMin: next }); al.textContent = next ? next + ' min' : 'Off';
+    }, prefs().autoLockMin ? prefs().autoLockMin + ' min' : 'Off');
     const snd = item(c, 'Sounds', '', () => { setPrefs({ sounds: !prefs().sounds }); snd.textContent = prefs().sounds ? 'On' : 'Off'; if (prefs().sounds) beep(); }, prefs().sounds ? 'On' : 'Off');
     item(c, 'Reset to defaults', 'Clears settings and saved merchants (wallet is kept)', () => {
       if (!confirm('Reset settings and saved merchants?')) return;
       localStorage.removeItem('prefs'); setProfile(ctx.wallet.address, { saved: [], recents: [] }); close(); renderSaved();
     });
   });
+}
+
+const MSG = {
+  Accepted: 'An LP accepted your order and is paying the merchant',
+  Proven: 'Merchant paid ✓ Confirm or dispute within the window',
+  Released: 'Payment complete ✓',
+  Refunded: 'Order refunded',
+  Disputed: 'Dispute opened. An arbiter will decide',
+};
+async function watchOrders() {
+  const key = 'seen:' + ctx.wallet.address.toLowerCase();
+  const seen = JSON.parse(localStorage.getItem(key) || 'null');
+  const first = !seen, next = seen || {};
+  for (const id of await myOrders()) {
+    const st = STATUS[Number((await ctx.escrow.orders(id)).status)];
+    if (!first && next[id] !== undefined && next[id] !== st && MSG[st]) notify(`Order #${id}: ${MSG[st]}`);
+    next[id] = st;
+  }
+  localStorage.setItem(key, JSON.stringify(next));
 }
 
 function rememberMerchant(m) {
@@ -326,6 +366,7 @@ async function renderOrders() {
   $('inr').oninput = updateQuote;
   $('pay').onclick = pay;
   setInterval(() => renderOrders().catch(() => {}), 4000);
+  watchOrders().catch(() => {}); setInterval(() => watchOrders().catch(() => {}), 4000);
   setInterval(refreshConfig, 30000);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 })();

@@ -39,9 +39,71 @@ const vaultKey = (k) => 'vault:' + k, sessKey = (k) => 'sess:' + k;
 const profileKey = (addr) => 'profile:' + addr.toLowerCase();
 const getProfile = (addr) => { try { return JSON.parse(localStorage.getItem(profileKey(addr))) || {}; } catch { return {}; } };
 const setProfile = (addr, patch) => localStorage.setItem(profileKey(addr), JSON.stringify({ ...getProfile(addr), ...patch }));
-const prefs = () => { try { return { sounds: true, currency: 'INR', ...JSON.parse(localStorage.getItem('prefs')) }; } catch { return { sounds: true, currency: 'INR' }; } };
+const prefs = () => { try { return { sounds: true, currency: 'INR', lang: 'en', autoLockMin: 15, notify: false, ...JSON.parse(localStorage.getItem('prefs')) }; } catch { return { sounds: true, currency: 'INR', lang: 'en', autoLockMin: 15, notify: false }; } };
 const setPrefs = (p) => localStorage.setItem('prefs', JSON.stringify({ ...prefs(), ...p }));
 function beep() { if (!prefs().sounds) return; try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain(); o.connect(g); g.connect(a.destination); o.frequency.value = 880; g.gain.value = 0.1; o.start(); o.stop(a.currentTime + 0.15); } catch {} }
+
+// ---- Language: exact-text dictionary applied to the DOM (English is the source text) ----
+const HI = {
+  'Hi': 'नमस्ते', 'USDC BALANCE': 'USDC बैलेंस', 'Get test USDC': 'टेस्ट USDC लें', 'Scan UPI QR': 'UPI QR स्कैन करें',
+  'Continue': 'आगे बढ़ें', 'Pay': 'भुगतान करें', 'My orders': 'मेरे ऑर्डर', 'No orders yet': 'अभी कोई ऑर्डर नहीं',
+  'Paying': 'भुगतान किसे', 'Amount (₹)': 'राशि (₹)', 'Saved & recent': 'सेव और हाल के', 'Menu': 'मेनू',
+  '👛 Wallet': '👛 वॉलेट', '🎧 Help & Support': '🎧 मदद और सपोर्ट', '⚙️ Settings': '⚙️ सेटिंग्स', '👤 Profile & history': '👤 प्रोफ़ाइल और हिस्ट्री',
+  'Logout (lock)': 'लॉगआउट (लॉक)', 'Wallet': 'वॉलेट', 'Send': 'भेजें', 'Receive': 'प्राप्त करें', 'Buy': 'खरीदें', 'Transactions': 'लेनदेन',
+  'Manage wallet': 'वॉलेट मैनेज करें', 'Settings': 'सेटिंग्स', 'Currency': 'मुद्रा', 'Language': 'भाषा', 'Sounds': 'आवाज़', 'Notifications': 'नोटिफिकेशन',
+  'Auto-lock': 'ऑटो-लॉक', 'Reset to defaults': 'डिफ़ॉल्ट पर रीसेट करें', 'Help & Support': 'मदद और सपोर्ट', 'Send USDC': 'USDC भेजें',
+  'To address': 'पता', 'Amount (USDC)': 'राशि (USDC)', 'DAILY STREAK · pay daily to keep it alive': 'डेली स्ट्रीक · रोज़ भुगतान करें',
+  'Welcome back': 'वापसी पर स्वागत', 'Password': 'पासवर्ड', 'Unlock': 'अनलॉक करें', 'Log in →': 'लॉग इन →', 'Where do we pay out?': 'भुगतान कहाँ होगा?',
+  'Pick where your merchant gets local cash.': 'चुनें कि मर्चेंट को लोकल कैश कहाँ मिलेगा।', 'Continue →': 'आगे →', 'Sign in': 'साइन इन',
+  'Create new wallet': 'नया वॉलेट बनाएँ', 'I have a wallet (import)': 'मेरे पास वॉलेट है (इम्पोर्ट)', 'Create wallet': 'वॉलेट बनाएँ', 'Import': 'इम्पोर्ट',
+  'Display name': 'नाम', 'Back': 'वापस', 'Scan any local payment QR and pay in USDC. The merchant gets local cash.': 'कोई भी लोकल पेमेंट QR स्कैन करें और USDC से भुगतान करें। मर्चेंट को लोकल कैश मिलता है।',
+  'Activity': 'गतिविधि', 'Saved merchants': 'सेव किए मर्चेंट', 'Security': 'सुरक्षा', 'Lock': 'लॉक', 'Show recovery phrase': 'रिकवरी फ़्रेज़ दिखाएँ',
+  'Copy address': 'पता कॉपी करें', 'Save merchant': 'मर्चेंट सेव करें', 'Change password': 'पासवर्ड बदलें', 'Payment receipt': 'पेमेंट रसीद',
+  'Cancel': 'रद्द करें', 'Dispute': 'विवाद', 'Confirm': 'पुष्टि करें', 'Released': 'पूरा हुआ', 'Refunded': 'रिफ़ंड', 'Open': 'खुला', 'Accepted': 'स्वीकार',
+  'Proven': 'प्रमाणित', 'Disputed': 'विवादित', 'On': 'चालू', 'Off': 'बंद', 'English': 'हिंदी', 'Close': 'बंद करें',
+};
+const T = (txt) => (prefs().lang === 'hi' && HI[txt]) || txt;
+function applyLang(root = document.body) {
+  if (prefs().lang !== 'hi') return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) {
+    const t = n.nodeValue.trim();
+    if (HI[t]) n.nodeValue = n.nodeValue.replace(t, HI[t]);
+    else if (/^Hi\s/.test(t)) n.nodeValue = n.nodeValue.replace(/^(\s*)Hi\s/, '$1नमस्ते ');
+  }
+  root.querySelectorAll?.('[placeholder]').forEach((e) => { if (HI[e.placeholder]) e.placeholder = HI[e.placeholder]; });
+}
+if (prefs().lang === 'hi') {
+  document.documentElement.lang = 'hi';
+  let busy = false;
+  new MutationObserver((ms) => {
+    if (busy) return; busy = true;
+    for (const m of ms) m.addedNodes.forEach((n) => n.nodeType === 1 ? applyLang(n) : n.parentNode && applyLang(n.parentNode));
+    busy = false;
+  }).observe(document.documentElement, { childList: true, subtree: true, characterData: false });
+  document.addEventListener('DOMContentLoaded', () => applyLang());
+}
+
+// ---- Notifications: in-page toast + sound, and a system notification if the user allowed it ----
+function toast(msg) {
+  const d = document.createElement('div');
+  d.textContent = msg;
+  d.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:200;background:var(--ink);color:#fff;padding:12px 18px;border-radius:999px;font-weight:700;box-shadow:3px 3px 0 var(--orange);max-width:90vw';
+  document.body.append(d); setTimeout(() => d.remove(), 5000);
+}
+function notify(msg) {
+  toast(msg); beep();
+  if (prefs().notify && 'Notification' in window && Notification.permission === 'granted') new Notification('Qripto', { body: msg, icon: '/logo.png' });
+}
+
+// ---- Auto-lock after inactivity (only for password-protected wallets) ----
+function startAutoLock(keyName) {
+  const mins = prefs().autoLockMin;
+  if (!mins || !localStorage.getItem(vaultKey(keyName))) return;
+  let last = Date.now();
+  ['pointerdown', 'keydown', 'touchstart'].forEach((e) => addEventListener(e, () => { last = Date.now(); }, { passive: true }));
+  setInterval(() => { if (Date.now() - last > mins * 60_000) logout(keyName); }, 15_000);
+}
 const AVATARS = ['🦊', '🐼', '🦁', '🐯', '🐸', '🦄', '🐙', '🚀'];
 
 async function saveVault(keyName, wallet, password, profile) {
@@ -189,6 +251,7 @@ async function boot(keyName) {
   let pk = sessionStorage.getItem(sessKey(keyName));
   if (!pk) pk = await walletGate(keyName);
   sessionStorage.setItem(sessKey(keyName), pk);
+  startAutoLock(keyName);
   const wallet = new ethers.Wallet(pk, provider);
   return {
     cfg, provider, wallet, keyName,

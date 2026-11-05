@@ -49,12 +49,25 @@ async function main() {
     console.log('  staked', Number(want) / 1e6, 'USDC');
   }
   const bps = await escrow.stakeBps();
+  // Rate the bot honors: market minus LP_SPREAD_PCT (default 0.5%). Published so payers get the best offer.
+  const quote = async () => {
+    const c = await api('/api/config');
+    const rate = Number((c.market * (1 - Number(process.env.LP_SPREAD_PCT || 0.5) / 100)).toFixed(2));
+    const ts = Math.floor(Date.now() / 1000);
+    await api('/api/quote', { rate, ts, sig: await wallet.signMessage(`upipay:quote:${rate}:${ts}`) });
+    return rate;
+  };
+  let myRate = await quote().catch((e) => { console.error('quote:', e.message); return 0; });
+  if (myRate) console.log('  quoting ₹' + myRate);
+  setInterval(() => quote().then((r) => { myRate = r; }).catch(() => {}), 120000);
   const inFlight = new Set();
+  let queue = Promise.resolve();
 
   const step = async (id) => {
     const o = await escrow.orders(id);
     const status = Number(o.status);
-    if (status === 1 && (await escrow.stake(wallet.address)) >= (o.amount * bps) / 10000n) {
+    const implied = Number(o.inrPaise) / 100 / (Number(o.amount) / 1e6);
+    if (status === 1 && (!myRate || implied <= myRate + 0.005) && (await escrow.stake(wallet.address)) >= (o.amount * bps) / 10000n) {
       await (await escrow.acceptOrder(id)).wait();
       console.log(`accepted #${id}`);
     } else if (status === 2 && o.lp.toLowerCase() === wallet.address.toLowerCase()) {
@@ -72,7 +85,8 @@ async function main() {
     for (let id = 1; id < n; id++) {
       if (inFlight.has(id)) continue;
       inFlight.add(id);
-      step(id).catch((e) => console.error(`#${id}:`, e.shortMessage || e.message)).finally(() => inFlight.delete(id));
+      // one tx at a time from this wallet to avoid nonce clashes
+      queue = queue.then(() => step(id)).catch((e) => console.error(`#${id}:`, e.shortMessage || e.message)).finally(() => inFlight.delete(id));
     }
   }, POLL_MS);
 }

@@ -23,6 +23,14 @@
   </section>
 
   <section class="card">
+    <strong>My rate</strong>
+    <div class="muted">INR per USDC you will honor. Payers see the highest rate any staked LP offers, so a higher number wins more orders but earns less. Market: <b id="mkt">…</b></div>
+    <input id="myRate" type="number" step="0.01" style="margin-top:8px">
+    <button id="pubRate" class="full">Publish rate</button>
+    <div class="muted" id="rateMsg"></div>
+  </section>
+
+  <section class="card">
     <strong>Open orders</strong>
     <div id="open" class="muted">None</div>
   </section>
@@ -35,7 +43,8 @@
 <script src="/ethers.js"></script>
 <script src="/common.js"></script>
 <script>
-let ctx, stakeBps = 0n;
+let ctx, stakeBps = 0n, myRate = 0;
+const impliedRate = (o) => Number(o.inrPaise) / 100 / (Number(o.amount) / 1e6);
 const act = async (btn, fn) => { btn.disabled = true; try { await fn(); } catch (e) { alert(e.info?.error?.message || e.shortMessage || e.message); } btn.disabled = false; render(true); };
 const me = () => ctx.wallet.address.toLowerCase();
 
@@ -58,7 +67,9 @@ async function render(force) {
       const t = document.createElement('div');
       t.textContent = `${fmtInr(o.inrPaise)} → earn ${fmtUsdc(o.amount)} USDC (locks ${fmtUsdc(lock)})`;
       const b = document.createElement('button'); b.textContent = 'Accept';
+      const rateOk = !myRate || impliedRate(o) <= myRate + 0.005;
       if (free < lock) { b.disabled = true; b.title = 'Deposit more stake first'; }
+      else if (!rateOk) { b.disabled = true; b.title = `Order rate ₹${impliedRate(o).toFixed(2)} is above your published rate`; }
       b.onclick = () => act(b, async () => { await (await ctx.escrow.acceptOrder(id)).wait(); });
       row.append(t, b); open.append(row);
     } else if (st === 2 && mineOrder) {
@@ -100,6 +111,20 @@ async function render(force) {
   const amt = () => { const v = parseFloat($('stakeAmt').value); if (!(v > 0)) throw new Error('Enter an amount'); return BigInt(Math.round(v * 1e6)); };
   $('dep').onclick = () => act($('dep'), async () => { const a = amt(); await (await ctx.usdc.approve(ctx.cfg.escrow, a)).wait(); await (await ctx.escrow.depositStake(a)).wait(); $('stakeAmt').value = ''; });
   $('wd').onclick = () => act($('wd'), async () => { await (await ctx.escrow.withdrawStake(amt())).wait(); $('stakeAmt').value = ''; });
+  const publish = async () => {
+    const rate = parseFloat($('myRate').value);
+    if (!(rate > 0)) throw new Error('Enter a rate');
+    const ts = Math.floor(Date.now() / 1000);
+    const sig = await ctx.wallet.signMessage(`upipay:quote:${rate}:${ts}`);
+    await api('/api/quote', { rate, ts, sig });
+    myRate = rate; localStorage.setItem('lpRate', String(rate));
+    $('rateMsg').textContent = `Published ₹${rate}. Re-publishes automatically while this page is open.`;
+  };
+  $('mkt').textContent = '₹' + ctx.cfg.market;
+  $('myRate').value = localStorage.getItem('lpRate') || (ctx.cfg.market * 0.995).toFixed(2);
+  myRate = parseFloat($('myRate').value);
+  $('pubRate').onclick = () => act($('pubRate'), publish);
+  setInterval(() => { if (myRate) publish().catch(() => {}); }, 120000);
   await render(true);
   setInterval(() => render().catch(() => {}), 4000);
 })();

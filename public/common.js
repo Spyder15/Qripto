@@ -59,7 +59,7 @@ const HI = {
   'Display name': 'नाम', 'Back': 'वापस', 'Scan any local payment QR and pay in USDC. The merchant gets local cash.': 'कोई भी लोकल पेमेंट QR स्कैन करें और USDC से भुगतान करें। मर्चेंट को लोकल कैश मिलता है।',
   'Activity': 'गतिविधि', 'Saved merchants': 'सेव किए मर्चेंट', 'Security': 'सुरक्षा', 'Lock': 'लॉक', 'Show recovery phrase': 'रिकवरी फ़्रेज़ दिखाएँ',
   'Copy address': 'पता कॉपी करें', 'Save merchant': 'मर्चेंट सेव करें', 'Change password': 'पासवर्ड बदलें', 'Payment receipt': 'पेमेंट रसीद',
-  'Cancel': 'रद्द करें', 'Dispute': 'विवाद', 'Confirm': 'पुष्टि करें', 'Released': 'पूरा हुआ', 'Refunded': 'रिफ़ंड', 'Open': 'खुला', 'Accepted': 'स्वीकार',
+  'Cancel': 'रद्द करें', 'Pay': 'पे', 'Merchant': 'मर्चेंट', 'Earn (LP)': 'कमाएँ (LP)', 'Arbiter': 'आर्बिटर', 'Dispute': 'विवाद', 'Confirm': 'पुष्टि करें', 'Released': 'पूरा हुआ', 'Refunded': 'रिफ़ंड', 'Open': 'खुला', 'Accepted': 'स्वीकार',
   'Proven': 'प्रमाणित', 'Disputed': 'विवादित', 'On': 'चालू', 'Off': 'बंद', 'English': 'हिंदी', 'Close': 'बंद करें',
 };
 const T = (txt) => (prefs().lang === 'hi' && HI[txt]) || txt;
@@ -104,6 +104,21 @@ function startAutoLock(keyName) {
   ['pointerdown', 'keydown', 'touchstart'].forEach((e) => addEventListener(e, () => { last = Date.now(); }, { passive: true }));
   setInterval(() => { if (Date.now() - last > mins * 60_000) logout(keyName); }, 15_000);
 }
+// ---- One site, four roles: tab bar on every page ----
+function navBar() {
+  const m = document.querySelector('main'); if (!m || location.pathname === '/receipt') return;
+  const tabs = [['/', 'Pay'], ['/merchant', 'Merchant'], ['/lp', 'Earn (LP)'], ['/arbiter', 'Arbiter']];
+  const bar = document.createElement('nav');
+  bar.style.cssText = 'display:flex;gap:6px;margin-bottom:14px;overflow:auto';
+  for (const [href, label] of tabs) {
+    const a = document.createElement('a'); a.href = href; a.textContent = label;
+    const on = location.pathname === href || (href === '/' && location.pathname === '/profile');
+    a.style.cssText = `padding:7px 14px;border:2px solid var(--ink);border-radius:999px;text-decoration:none;color:var(--ink);font-weight:700;font-size:14px;white-space:nowrap;background:${on ? 'var(--purple)' : '#fff'}`;
+    bar.append(a);
+  }
+  m.prepend(bar);
+}
+navBar();
 const AVATARS = ['🦊', '🐼', '🦁', '🐯', '🐸', '🦄', '🐙', '🚀'];
 
 async function saveVault(keyName, wallet, password, profile) {

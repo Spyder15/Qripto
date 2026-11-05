@@ -364,6 +364,8 @@ async function renderOrders() {
   $('go').onclick = () => handleText($('paste').value);
   $('inr').oninput = updateQuote;
   $('pay').onclick = pay;
+  const q = new URLSearchParams(location.search);
+  if (q.get('upi')) { const am = parseFloat(q.get('am')); showConfirm({ upi: q.get('upi'), name: q.get('pn') || q.get('upi'), inr: am > 0 ? am : null }); }
   refreshBalance().catch(() => {}); renderOrders().catch(() => {});
   setInterval(() => renderOrders().catch(() => {}), 4000);
   watchOrders().catch(() => {}); setInterval(() => watchOrders().catch(() => {}), 4000);

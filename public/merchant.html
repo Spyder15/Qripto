@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qripto · Merchant</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/logo.png">
+</head>
+<body>
+<main>
+  <h1>Get paid in INR, customers pay in USDC</h1>
+  <section class="card">
+    <label for="upi">Your UPI id</label>
+    <input id="upi" placeholder="shop@upi">
+    <label for="amt">Fixed amount ₹ (optional)</label>
+    <input id="amt" type="number" min="1" step="0.01">
+    <button id="go" class="full">Create payment link</button>
+    <div id="err" class="err"></div>
+  </section>
+
+  <section class="card" id="linkCard" hidden>
+    <strong>Payment link</strong>
+    <div id="qr" style="background:#fff;border:2px solid var(--ink);border-radius:16px;padding:12px;text-align:center;margin:10px 0"></div>
+    <div id="link" class="muted" style="word-break:break-all"></div>
+    <button id="copy" class="full alt">Copy link</button>
+    <button id="share" class="full dark" hidden>Share</button>
+  </section>
+
+  <section class="card" id="recvCard" hidden>
+    <strong>Received</strong>
+    <div class="big" id="total">₹0.00</div>
+    <div id="list" class="muted"></div>
+    <div class="muted">Read from the chain: payments whose UPI payout was proven by an LP. Anyone who knows a UPI id can see these amounts, never your name or bank details.</div>
+  </section>
+</main>
+<script src="/ethers.js"></script>
+<script src="/qr.js"></script>
+<script src="/common.js"></script>
+<script>
+let cfg, escrow;
+const VALID = /^[\w.\-]{2,}@[\w.\-]{2,}$/;
+
+async function load(upi) {
+  const hash = ethers.id(upi);
+  const logs = await escrow.queryFilter(escrow.filters.OrderCreated(), cfg.fromBlock || 0);
+  const mine = logs.filter((l) => l.args.upiHash === hash).reverse();
+  let total = 0n; const list = $('list'); list.textContent = '';
+  for (const l of mine) {
+    const o = await escrow.orders(l.args.id);
+    const st = STATUS[Number(o.status)];
+    const paid = st === 'Proven' || st === 'Released';
+    if (paid) total += o.inrPaise;
+    const row = document.createElement('div'); row.className = 'row';
+    const t = document.createElement('div'); t.textContent = `#${l.args.id} · ${fmtInr(o.inrPaise)} `;
+    const pill = document.createElement('span'); pill.className = 'pill ' + st; pill.textContent = paid ? 'Paid ✓' : st; t.append(pill);
+    row.append(t); list.append(row);
+  }
+  if (!mine.length) list.textContent = 'No payments yet';
+  $('total').textContent = fmtInr(total);
+  $('recvCard').hidden = false;
+}
+
+function show() {
+  const upi = $('upi').value.trim();
+  if (!VALID.test(upi)) { $('err').textContent = 'Enter a valid UPI id like shop@upi'; return; }
+  $('err').textContent = '';
+  localStorage.setItem('merchantUpi', upi);
+  const am = parseFloat($('amt').value);
+  const link = `${location.origin}/?upi=${encodeURIComponent(upi)}${am > 0 ? '&am=' + am : ''}`;
+  const qr = qrcode(0, 'M'); qr.addData(link); qr.make();
+  $('qr').innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0, scalable: true });
+  $('qr').querySelector('svg').style.cssText = 'width:100%;max-width:260px;height:auto';
+  $('link').textContent = link; $('linkCard').hidden = false;
+  $('copy').onclick = async () => { await navigator.clipboard.writeText(link); $('copy').textContent = 'Copied ✓'; };
+  if (navigator.share) { $('share').hidden = false; $('share').onclick = () => navigator.share({ title: 'Pay with Qripto', url: link }); }
+  load(upi).catch((e) => { $('err').textContent = e.message; });
+}
+
+(async () => {
+  cfg = await api('/api/config');
+  const provider = new ethers.JsonRpcProvider(cfg.rpc.startsWith('/') ? location.origin + cfg.rpc : cfg.rpc, undefined, { cacheTimeout: -1 });
+  escrow = new ethers.Contract(cfg.escrow, ABI, provider);
+  $('go').onclick = show;
+  const saved = localStorage.getItem('merchantUpi');
+  if (saved) { $('upi').value = saved; show(); setInterval(() => load($('upi').value.trim()).catch(() => {}), 5000); }
+})();
+</script>
+</body>
+</html>

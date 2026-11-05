@@ -53,6 +53,7 @@ async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbac
     '/arbiter': ['public/arbiter.html', 'text/html'],
     '/receipt': ['public/receipt.html', 'text/html'],
     '/profile': ['public/profile.html', 'text/html'],
+    '/merchant': ['public/merchant.html', 'text/html'],
     '/emv.js': ['public/emv.js', 'text/javascript'],
     '/manifest.webmanifest': ['public/manifest.webmanifest', 'application/manifest+json'],
     '/sw.js': ['public/sw.js', 'text/javascript'],

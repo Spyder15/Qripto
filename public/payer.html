@@ -132,8 +132,7 @@ async function pay() {
     await api('/api/meta', { id, upi: merchant.upi, name: merchant.name });
     rememberMerchant(merchant); beep();
     $('confirm').hidden = true;
-    await refreshBalance(); await renderOrders();
-  } catch (e) { $('payErr').textContent = e.info?.error?.message || e.shortMessage || e.message; }
+    } catch (e) { $('payErr').textContent = e.info?.error?.message || e.shortMessage || e.message; }
   $('pay').disabled = false;
 }
 
@@ -365,6 +364,7 @@ async function renderOrders() {
   $('go').onclick = () => handleText($('paste').value);
   $('inr').oninput = updateQuote;
   $('pay').onclick = pay;
+  refreshBalance().catch(() => {}); renderOrders().catch(() => {});
   setInterval(() => renderOrders().catch(() => {}), 4000);
   watchOrders().catch(() => {}); setInterval(() => watchOrders().catch(() => {}), 4000);
   setInterval(refreshConfig, 30000);

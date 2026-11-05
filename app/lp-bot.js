@@ -34,7 +34,7 @@ async function payMerchant({ upi, inrPaise }) {
 
 async function main() {
   const cfg = await api('/api/config');
-  const provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { cacheTimeout: -1 });
+  const provider = new ethers.JsonRpcProvider(cfg.rpc.startsWith('/') ? BASE + cfg.rpc : cfg.rpc, undefined, { cacheTimeout: -1 });
   const key = process.env.LP_KEY || ethers.Wallet.createRandom().privateKey;
   const wallet = new ethers.Wallet(key, provider);
   const escrow = new ethers.Contract(cfg.escrow, ESCROW_ABI, wallet);

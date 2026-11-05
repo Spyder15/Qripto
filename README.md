@@ -25,3 +25,9 @@ Pages: `/` payer, `/profile`, `/lp`, `/arbiter`, `/receipt?id=N`. Chain resets o
 - **Mock:** UPI payout proof (`app/providers.js` `verifyPayout`) — the attestor signs whatever UTR the LP submits. Real zkTLS / bank attestation is required before real money.
 - **Mock:** VPA name lookup (`validateVpa`) — needs a licensed PSP/gateway. QR `pn=` is shown when available.
 - Rate: CoinGecko with fallback. No audit, no legal/RBI review. Use dummy UPI ids only.
+
+## Hosting
+GitHub Pages cannot host this (it needs the Node backend and a chain). Options:
+- **Render (free):** New + → Blueprint → pick this repo (`render.yaml` + `Dockerfile`). It runs the local-chain demo; the chain and orders reset on every restart/sleep.
+- **Quick public link from your machine:** `npm run dev`, then `cloudflared tunnel --url http://localhost:8788`.
+The demo exposes a same-origin `/rpc` proxy (node admin methods blocked) and a rate-limited test faucet. The dev arbiter endpoint is open, so use it only with test funds.

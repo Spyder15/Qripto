@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: qripto
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/config

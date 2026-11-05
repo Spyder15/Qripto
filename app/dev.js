@@ -28,6 +28,6 @@ const DEPLOYER_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7b
   const escrow = await deploy('UpiEscrow', [usdc, attestorAddr, new ethers.Wallet(ARBITER_KEY).address, 900, Number(process.env.DISPUTE_WINDOW || 120), 5000]);
   const { chainId } = await provider.getNetwork();
   const rate = Number(process.env.RATE || 98.76); // INR per USDC, fixed for the demo
-  await start({ rpc: RPC, escrow, usdc, attestorKey: ATTESTOR_KEY, arbiterKey: ARBITER_KEY, rate, chainId: Number(chainId), port: Number(process.env.PORT || 8788) });
+  await start({ rpc: RPC, escrow, usdc, attestorKey: ATTESTOR_KEY, arbiterKey: ARBITER_KEY, rate, chainId: Number(chainId), proxyRpc: true, port: Number(process.env.PORT || 8788) });
   console.log(`payer:  http://localhost:${process.env.PORT || 8788}/\nLP:     http://localhost:${process.env.PORT || 8788}/lp\nescrow: ${escrow}`);
 })();

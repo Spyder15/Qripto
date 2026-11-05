@@ -37,7 +37,8 @@ function streak(days) {
 }
 
 let faucetQueue = Promise.resolve();
-async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbackRate, spreadPct = 1, enableFaucet = true, fromBlock = 0, port = 8788, chainId }) {
+const faucetHits = new Map();
+async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbackRate, spreadPct = 1, enableFaucet = true, fromBlock = 0, port = 8788, chainId, proxyRpc = false }) {
   const provider = new ethers.JsonRpcProvider(rpc, undefined, { cacheTimeout: -1 });
   const attestor = new ethers.Wallet(attestorKey);
   const contract = new ethers.Contract(escrow, ESCROW_ABI, provider);
@@ -79,6 +80,16 @@ async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbac
         res.writeHead(200, { 'content-type': files[url.pathname][1] });
         return res.end(fs.readFileSync(path.join(root, files[url.pathname][0])));
       }
+      // Same-origin JSON-RPC proxy so browsers can reach a private/local node. Node admin methods are blocked.
+      if (url.pathname === '/rpc' && req.method === 'POST' && proxyRpc) {
+        let raw = ''; for await (const c of req) { raw += c; if (raw.length > 100_000) return send(res, 413, { error: 'too_large' }); }
+        let calls; try { calls = JSON.parse(raw); } catch { return send(res, 400, { error: 'bad_json' }); }
+        if ([].concat(calls).some((c) => !/^(eth|net|web3)_/.test(String(c?.method)))) return send(res, 403, { error: 'method_blocked' });
+        const r = await fetch(rpc, { method: 'POST', headers: { 'content-type': 'application/json' }, body: raw });
+        res.writeHead(r.status, { 'content-type': 'application/json' });
+        return res.end(await r.text());
+      }
+
       if (url.pathname === '/api/config') {
         const r = await getRate({ fallback: fallbackRate, spreadPct });
         // Best rate for the payer = highest rate that at least one staked LP has committed to honor.
@@ -89,7 +100,7 @@ async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbac
           if (!best || q.rate > best.rate) best = { lp, rate: q.rate };
         }
         const rate = best ? best.rate : r.rate;
-        return send(res, 200, { rpc, escrow, usdc, chainId, rate, market: r.market, rateSource: best ? 'best LP offer' : r.source, spreadPct: Number(((1 - rate / r.market) * 100).toFixed(2)), offers: quotes.size, faucet: enableFaucet, fromBlock, devArbiter: !!arbiterKey });
+        return send(res, 200, { rpc: proxyRpc ? '/rpc' : rpc, escrow, usdc, chainId, rate, market: r.market, rateSource: best ? 'best LP offer' : r.source, spreadPct: Number(((1 - rate / r.market) * 100).toFixed(2)), offers: quotes.size, faucet: enableFaucet, fromBlock, devArbiter: !!arbiterKey });
       }
 
       // LP publishes the best INR/USDC rate it will honor (signed, refreshed every few minutes).
@@ -110,6 +121,10 @@ async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbac
       if (url.pathname === '/api/faucet' && req.method === 'POST' && enableFaucet) {
         const { address } = await body(req);
         if (!ethers.isAddress(address)) return send(res, 400, { error: 'bad_address' });
+        const ip = req.headers['cf-connecting-ip'] || req.socket.remoteAddress, now = Date.now();
+        const hits = (faucetHits.get(ip) || []).filter((t) => now - t < 3600_000);
+        if (hits.length >= 10) return send(res, 429, { error: 'faucet_limit: try again later' });
+        faucetHits.set(ip, [...hits, now]);
         const funder = new ethers.Wallet(process.env.FAUCET_KEY || attestorKey, provider);
         const token = new ethers.Contract(usdc, ['function mint(address,uint256)'], funder);
         // One faucet tx pair at a time so concurrent requests don't reuse a nonce.

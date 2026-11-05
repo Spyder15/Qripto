@@ -247,7 +247,7 @@ function walletGate(keyName) {
 
 async function boot(keyName) {
   const cfg = await api('/api/config');
-  const provider = new ethers.JsonRpcProvider(cfg.rpc, undefined, { cacheTimeout: -1 });
+  const provider = new ethers.JsonRpcProvider(cfg.rpc.startsWith('/') ? location.origin + cfg.rpc : cfg.rpc, undefined, { cacheTimeout: -1 });
   let pk = sessionStorage.getItem(sessKey(keyName));
   if (!pk) pk = await walletGate(keyName);
   sessionStorage.setItem(sessKey(keyName), pk);

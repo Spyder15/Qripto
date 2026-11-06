@@ -4,29 +4,35 @@
 
 <br>
 
-<img src="docs/badge.svg" width="300" alt="Open source, testnet, PRs welcome">
+**A trust-minimised "Paytm for crypto" prototype.**<br>
+On-chain escrow · staked liquidity providers · a payer app that feels like a normal payments app.
 
-<br><br>
-
-A trust-minimised "Paytm for crypto" prototype: an on-chain escrow, staked liquidity providers, and a payer app that feels like a normal payments app.
+[**Live demo**](https://identification-successfully-tribute-continuity.trycloudflare.com) · [**How it works**](#how-it-works) · [**Quick start**](#quick-start) · [**Roadmap**](#roadmap) · [**Contribute**](CONTRIBUTING.md)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
-[![Solidity](https://img.shields.io/badge/solidity-0.8.24-363636.svg)](contracts/UpiEscrow.sol)
 [![CI](https://github.com/Spyder15/Qripto/actions/workflows/ci.yml/badge.svg)](https://github.com/Spyder15/Qripto/actions/workflows/ci.yml)
+[![Solidity](https://img.shields.io/badge/solidity-0.8.24-363636.svg)](contracts/UpiEscrow.sol)
 [![Tests](https://img.shields.io/badge/tests-21%20passing-2ea44f.svg)](#tests)
 [![Network](https://img.shields.io/badge/network-testnet%20only-orange.svg)](#status-mock-vs-real)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-a78bfa.svg)](CONTRIBUTING.md)
+[![Stars](https://img.shields.io/github/stars/Spyder15/Qripto?style=social)](https://github.com/Spyder15/Qripto/stargazers)
 
-**If this idea is useful to you, a ⭐ helps a lot.**
+<img src="docs/badge.svg" width="280" alt="Open source, testnet, PRs welcome">
+
+<br>
+
+<img src="docs/screenshots/01-landing.png" width="180" alt="Landing">
+<img src="docs/screenshots/05-home.png" width="180" alt="Home">
+<img src="docs/screenshots/06-confirm.png" width="180" alt="Confirm payment">
+<img src="docs/screenshots/09-merchant.png" width="180" alt="Merchant page">
+
+<sub>The live demo runs from a laptop and may be offline. It uses test funds only.</sub>
 
 </div>
 
-<p align="center">
-  <img src="docs/screenshots/01-landing.png" width="190" alt="Landing">
-  <img src="docs/screenshots/05-home.png" width="190" alt="Home">
-  <img src="docs/screenshots/06-confirm.png" width="190" alt="Confirm payment">
-  <img src="docs/screenshots/09-merchant.png" width="190" alt="Merchant page">
-</p>
+## Contents
+
+[Why](#why) · [How is it different?](#how-is-it-different) · [How it works](#how-it-works) · [Features](#features) · [Screens](#screens) · [Quick start](#quick-start) · [Deploy](#deploy) · [Status](#status-mock-vs-real) · [Roadmap](#roadmap) · [FAQ](#faq) · [Contributing](#contributing)
 
 ---
 
@@ -119,7 +125,8 @@ Open <http://localhost:8788>, create a wallet, tap **Get test USDC**, then open 
 npm test
 ```
 
-## Project layout
+<details>
+<summary><b>Project layout</b></summary>
 
 ```
 contracts/   UpiEscrow.sol, MockUSDC.sol
@@ -129,6 +136,8 @@ scripts/     deploy.js
 test/        contract tests
 docs/        screenshots
 ```
+
+</details>
 
 ## Deploy
 

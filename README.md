@@ -28,9 +28,11 @@ On-chain escrow · staked liquidity providers · a payer app that feels like a n
 
 <sub>The live demo runs from a laptop and may be offline. It uses test funds only.</sub>
 
-### ▶️ [Watch the 80-second full flow](docs/demo.webm)
+### ▶️ Full flow in 80 seconds
 
-<sub>Merchant creates a link → payer creates a wallet and pays → LP fills it → payer confirms → merchant sees "Paid ✓".</sub>
+<img src="docs/demo.gif" width="270" alt="Qripto full payment flow demo">
+
+<sub>Merchant creates a link → payer creates a wallet and pays → LP fills it → payer confirms → merchant sees "Paid ✓". [Higher quality video](docs/demo.webm)</sub>
 
 </div>
 

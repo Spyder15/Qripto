@@ -1,15 +1,14 @@
 <div align="center">
 
-<img src="public/logo.png" width="96" alt="Qripto logo">
+<img src="docs/banner.png" alt="Qripto: scan any UPI QR, pay in USDC, the merchant gets INR">
 
-# Qripto
-
-### Scan any UPI QR. Pay in USDC. The merchant gets INR.
+<br>
 
 A trust-minimised "Paytm for crypto" prototype: an on-chain escrow, staked liquidity providers, and a payer app that feels like a normal payments app.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
 [![Solidity](https://img.shields.io/badge/solidity-0.8.24-363636.svg)](contracts/UpiEscrow.sol)
+[![CI](https://github.com/Spyder15/Qripto/actions/workflows/ci.yml/badge.svg)](https://github.com/Spyder15/Qripto/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-21%20passing-2ea44f.svg)](#tests)
 [![Network](https://img.shields.io/badge/network-testnet%20only-orange.svg)](#status-mock-vs-real)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-a78bfa.svg)](CONTRIBUTING.md)
@@ -32,6 +31,15 @@ A trust-minimised "Paytm for crypto" prototype: an on-chain escrow, staked liqui
 Crypto holders can't pay a corner chai stall. Merchants only accept UPI. Existing bridges either hold your funds, ask the merchant to touch crypto, or need you to trust a company.
 
 Qripto keeps the merchant on plain UPI and keeps the payer's USDC inside a smart contract until someone has proven the merchant was paid.
+
+## How is it different?
+
+| | Custodial on-ramp / OTC | P2P marketplace | **Qripto** |
+|---|---|---|---|
+| Who holds your USDC | The company | An escrow the company controls | A public smart contract |
+| Merchant needs crypto | Sometimes | Yes | **No, plain UPI** |
+| If the payout fails | Support ticket | Support ticket | **LP stake is slashed to you** |
+| Scan-and-pay UX | No | No | **Yes** |
 
 ## How it works
 
@@ -152,6 +160,18 @@ This is a **testnet prototype. Do not use real money.**
 - [ ] More corridors: PIX (Brazil), QRIS (Indonesia)
 - [ ] Decentralised arbiter and LP reputation
 - [ ] Independent contract audit
+
+## FAQ
+
+**Can I use real money?** No. Testnet only. The payout proof is a mock, so a dishonest LP could "prove" a payment that never happened. Fixing that is the main open problem.
+
+**Why does the merchant not need crypto?** The LP pays them over normal UPI. The LP is the one who takes the USDC.
+
+**What if the LP never pays?** The order times out, the payer is refunded, and the LP's locked stake is slashed to the payer.
+
+**What if the payer lies and says they weren't paid?** They dispute inside the window; the arbiter decides and the losing side is slashed. A decentralised arbiter is on the roadmap.
+
+**Does the chain see the merchant's UPI id?** No, only its keccak hash. The id stays in the backend's memory.
 
 ## Contributing
 

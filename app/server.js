@@ -59,6 +59,7 @@ async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbac
     '/sw.js': ['public/sw.js', 'text/javascript'],
     '/qr.js': ['node_modules/qrcode-generator/dist/qrcode.js', 'text/javascript'],
     '/logo.png': ['public/logo.png', 'image/png'],
+    '/favicon.ico': ['public/logo.png', 'image/png'],
     '/icon.svg': ['public/icon.svg', 'image/svg+xml'],
     '/common.js': ['public/common.js', 'text/javascript'],
     '/ethers.js': ['node_modules/ethers/dist/ethers.umd.min.js', 'text/javascript'],

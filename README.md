@@ -28,6 +28,10 @@ On-chain escrow · staked liquidity providers · a payer app that feels like a n
 
 <sub>The live demo runs from a laptop and may be offline. It uses test funds only.</sub>
 
+### ▶️ [Watch the 80-second full flow](docs/demo.webm)
+
+<sub>Merchant creates a link → payer creates a wallet and pays → LP fills it → payer confirms → merchant sees "Paid ✓".</sub>
+
 </div>
 
 ## Contents

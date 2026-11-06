@@ -4,6 +4,10 @@
 
 <br>
 
+<img src="docs/badge.svg" width="300" alt="Open source, testnet, PRs welcome">
+
+<br><br>
+
 A trust-minimised "Paytm for crypto" prototype: an on-chain escrow, staked liquidity providers, and a payer app that feels like a normal payments app.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)

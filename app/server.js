@@ -59,6 +59,7 @@ async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbac
     '/sw.js': ['public/sw.js', 'text/javascript'],
     '/qr.js': ['node_modules/qrcode-generator/dist/qrcode.js', 'text/javascript'],
     '/logo.png': ['public/logo.png', 'image/png'],
+    '/og.png': ['public/og.png', 'image/png'],
     '/favicon.ico': ['public/logo.png', 'image/png'],
     '/icon.svg': ['public/icon.svg', 'image/svg+xml'],
     '/common.js': ['public/common.js', 'text/javascript'],
@@ -80,7 +81,17 @@ async function start({ rpc, escrow, usdc, attestorKey, arbiterKey, rate: fallbac
     try {
       if (files[url.pathname] && req.method === 'GET') {
         res.writeHead(200, { 'content-type': files[url.pathname][1] });
-        return res.end(fs.readFileSync(path.join(root, files[url.pathname][0])));
+        const buf = fs.readFileSync(path.join(root, files[url.pathname][0]));
+        if (files[url.pathname][1] !== 'text/html') return res.end(buf);
+        // Link-preview tags need absolute URLs, so build them from the request's own origin.
+        const origin = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers['x-forwarded-host'] || req.headers.host}`;
+        const og = `<meta property="og:type" content="website"><meta property="og:site_name" content="Qripto">`
+          + `<meta property="og:title" content="Qripto: scan any UPI QR, pay in USDC">`
+          + `<meta property="og:description" content="The merchant gets INR. Your USDC stays in escrow until the payout is proven. Testnet prototype.">`
+          + `<meta property="og:image" content="${origin}/og.png"><meta property="og:image:width" content="1280"><meta property="og:image:height" content="640">`
+          + `<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${origin}/og.png">`
+          + `<meta name="description" content="Scan any UPI QR and pay in USDC. The merchant gets INR.">`;
+        return res.end(buf.toString().replace('</title>', `</title>${og}`));
       }
       // Same-origin JSON-RPC proxy so browsers can reach a private/local node. Node admin methods are blocked.
       if (url.pathname === '/rpc' && req.method === 'POST' && proxyRpc) {

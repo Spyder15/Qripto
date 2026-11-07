@@ -26,6 +26,8 @@ On-chain escrow · staked liquidity providers · a payer app that feels like a n
 <img src="docs/screenshots/06-confirm.png" width="180" alt="Confirm payment">
 <img src="docs/screenshots/09-merchant.png" width="180" alt="Merchant page">
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Spyder15/Qripto)
+
 <sub>The live demo runs from a laptop and may be offline. It uses test funds only.</sub>
 
 ### ▶️ Full flow in 80 seconds

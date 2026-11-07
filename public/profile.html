@@ -119,6 +119,10 @@ function renderSecurity() {
     $('secOut').textContent = w.mnemonic ? w.mnemonic.phrase : 'No phrase: this wallet was imported from a private key.';
   });
   mk('Show private key', async () => { $('secOut').textContent = (await decrypt()).privateKey; }, 'alt');
+  if (passkeySupported()) {
+    if (hasPasskey(KEY)) mk('Remove passkey', async () => { passkeyRemove(KEY); renderSecurity(); $('secOut').textContent = 'Passkey removed'; }, 'alt');
+    else mk('Enable passkey unlock', async () => { await passkeyEnable(KEY, ctx.wallet.privateKey); renderSecurity(); $('secOut').textContent = 'Passkey enabled ✓'; }, 'alt');
+  }
   mk('Change password', async () => {
     const w = await decrypt();
     const np = ask('New password (min 8 chars):');
@@ -150,7 +154,7 @@ function renderSecurity() {
   $('lock').onclick = () => logout(KEY);
   $('wipe').onclick = () => {
     if (!confirm('This deletes the wallet from this device. Without your recovery phrase the funds are lost. Continue?')) return;
-    localStorage.removeItem(vaultKey(KEY)); localStorage.removeItem(KEY); sessionStorage.removeItem(sessKey(KEY));
+    localStorage.removeItem(vaultKey(KEY)); localStorage.removeItem(KEY); passkeyRemove(KEY); sessionStorage.removeItem(sessKey(KEY));
     location.href = '/';
   };
   await loadBalances(); await loadHistory();

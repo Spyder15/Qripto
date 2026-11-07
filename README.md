@@ -169,13 +169,15 @@ This is a **testnet prototype. Do not use real money.**
 | Wallet vault, profile, merchant page, best-rate matching | ✅ Working |
 | UPI payout proof | ⚠️ **Mock.** The attestor signs whatever UTR the LP submits |
 | VPA name verification | ⚠️ Mock (only the QR `pn=` name is shown) |
-| Social login (Google, email, phone, passkey) | ⏳ Not connected (needs Privy / Web3Auth) |
+| Passkey unlock (Face ID / Touch ID, this device) | ✅ Works (WebAuthn PRF) |
+| Social login (Google, email, phone) | ⏳ Not connected (needs Privy / Web3Auth) |
 | Security audit, legal / RBI review | ❌ Not done |
 
 ## Roadmap
 
 - [ ] Real payout proof (zkTLS / bank-statement attestation)
-- [ ] Social login and passkeys
+- [x] Passkey unlock
+- [ ] Social login (Google, email, phone)
 - [ ] Base Sepolia public deployment
 - [ ] Verified VPA name lookup
 - [ ] More corridors: PIX (Brazil), QRIS (Indonesia)

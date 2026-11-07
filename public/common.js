@@ -130,6 +130,35 @@ async function saveVault(keyName, wallet, password, profile) {
 
 function logout(keyName) { sessionStorage.removeItem(sessKey(keyName)); location.reload(); }
 
+// ---- Passkey unlock: a WebAuthn credential whose PRF output encrypts a second copy of the key (Face ID / Touch ID). Per browser, password still works. ----
+const pkKey = (k) => 'passkey:' + k;
+const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const passkeySupported = () => !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
+const hasPasskey = (k) => !!localStorage.getItem(pkKey(k));
+async function prfSecret(id, salt) {
+  const cred = await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), allowCredentials: [{ type: 'public-key', id: unb64(id) }], userVerification: 'required', extensions: { prf: { eval: { first: salt } } } } });
+  const out = cred.getClientExtensionResults().prf?.results?.first;
+  if (!out) throw new Error('This browser or device does not support passkey unlock');
+  return ethers.hexlify(new Uint8Array(out));
+}
+async function passkeyEnable(keyName, privateKey) {
+  const w = new ethers.Wallet(privateKey), salt = crypto.getRandomValues(new Uint8Array(32));
+  const cred = await navigator.credentials.create({ publicKey: {
+    rp: { name: 'Qripto' }, user: { id: crypto.getRandomValues(new Uint8Array(16)), name: w.address.slice(0, 8) + '…' + w.address.slice(-4), displayName: getProfile(w.address).name || 'Qripto wallet' },
+    challenge: crypto.getRandomValues(new Uint8Array(32)), pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' }, extensions: { prf: {} } } });
+  if (!cred.getClientExtensionResults().prf?.enabled) throw new Error('This browser or device does not support passkey unlock');
+  const id = b64(cred.rawId);
+  const vault = await w.encrypt(await prfSecret(id, salt));
+  localStorage.setItem(pkKey(keyName), JSON.stringify({ id, salt: b64(salt), vault }));
+}
+async function passkeyUnlock(keyName) {
+  const p = JSON.parse(localStorage.getItem(pkKey(keyName)));
+  return (await ethers.Wallet.fromEncryptedJson(p.vault, await prfSecret(p.id, unb64(p.salt)))).privateKey;
+}
+function passkeyRemove(keyName) { localStorage.removeItem(pkKey(keyName)); }
+
 // Full-screen gate: unlock an existing vault, or create / import a wallet. Resolves with the private key.
 function walletGate(keyName) {
   return new Promise((resolve) => {
@@ -147,8 +176,11 @@ function walletGate(keyName) {
       card(`<h1>Welcome back ${prof.avatar || ''}</h1><div class="muted" id="who"></div>
         <label>Password</label><input id="pw" type="password" autocomplete="current-password">
         <button id="ok" class="full">Unlock</button><div id="e" class="err"></div>
+        ${hasPasskey(keyName) ? '<button id="pk" class="full dark">🔑 Unlock with passkey</button>' : ''}
         <button id="other" class="full alt">Use a different wallet</button>`);
       o.querySelector('#who').textContent = (prof.name || 'Your wallet') + (addr ? ' · 0x' + addr.slice(0, 4) + '…' + addr.slice(-4) : '');
+      const pkb = o.querySelector('#pk');
+      if (pkb) pkb.onclick = async () => { try { done(await passkeyUnlock(keyName)); } catch (e) { o.querySelector('#e').textContent = /cancel|not allowed/i.test(e.message) ? 'Passkey cancelled' : e.message; } };
       const btn = o.querySelector('#ok');
       const go = async () => {
         busy(btn, true);
@@ -161,11 +193,17 @@ function walletGate(keyName) {
 
     const finish = async (wallet, name, avatar, pw, btn, label) => {
       busy(btn, true);
-      try { await saveVault(keyName, wallet, pw, { name, avatar }); done(wallet.privateKey); }
+      try {
+        await saveVault(keyName, wallet, pw, { name, avatar });
+        const want = o.querySelector('#pkc');
+        if (want && want.checked) { try { await passkeyEnable(keyName, wallet.privateKey); } catch (e) { toast('Wallet created, but passkey was not set up: ' + e.message); } }
+        done(wallet.privateKey);
+      }
       catch (e) { o.querySelector('#e').textContent = e.message; busy(btn, false, label); }
     };
     const common = `<label>Display name</label><input id="nm" maxlength="30" placeholder="e.g. Rahul">
-      <label>Password (min 8 chars, unlocks this wallet on this device)</label><input id="pw" type="password" autocomplete="new-password">`;
+      <label>Password (min 8 chars, unlocks this wallet on this device)</label><input id="pw" type="password" autocomplete="new-password">
+      ${passkeySupported() ? '<label style="text-transform:none;display:flex;gap:8px;margin-top:10px"><input id="pkc" type="checkbox" style="width:auto"> Also unlock with a passkey (Face ID / Touch ID)</label>' : ''}`;
     const readCommon = () => {
       const pw = o.querySelector('#pw').value, name = o.querySelector('#nm').value.trim();
       if (!name) throw new Error('Enter a display name');
@@ -222,14 +260,21 @@ function walletGate(keyName) {
     };
 
     const signin = () => {
-      const soon = ['Continue with Google', 'Email address', 'Phone number', 'Passkey'].map((l) => `<button class="full" disabled style="background:#fff;text-align:left;margin-top:8px">${l} <span class="muted" style="float:right">soon</span></button>`).join('');
+      const soon = ['Continue with Google', 'Email address', 'Phone number'].map((l) => `<button class="full" disabled style="background:#fff;text-align:left;margin-top:8px">${l} <span class="muted" style="float:right">soon</span></button>`).join('');
       card(`<div style="display:flex;align-items:center;gap:8px"><img src="/logo.png" width="28" height="28" style="border-radius:8px" alt=""><strong style="font-size:20px">Sign in</strong></div>
         <button id="c" class="full" style="margin-top:14px">Create new wallet</button><button id="i" class="full alt">I have a wallet (import)</button>
         <div class="muted" style="margin:14px 0 0">Social login needs a key-management provider and is not connected yet:</div>${soon}
+        <button id="pkin" class="full dark" style="margin-top:8px;text-align:left">🔑 Continue with Passkey</button><div id="pke" class="err"></div>
         ${hasVault ? '<button id="b" class="full dark">Back to unlock</button>' : ''}
         <button id="bk" class="full dark">Back</button>`);
       o.querySelector('#c').onclick = create; o.querySelector('#i').onclick = imp; o.querySelector('#bk').onclick = country;
       if (hasVault) o.querySelector('#b').onclick = unlock;
+      o.querySelector('#pkin').onclick = async () => {
+        const e = o.querySelector('#pke');
+        if (!passkeySupported()) { e.textContent = 'Passkeys are not supported in this browser.'; return; }
+        if (!hasPasskey(keyName)) { e.textContent = 'No passkey on this device yet. Create a wallet and tick "Also unlock with a passkey".'; return; }
+        try { done(await passkeyUnlock(keyName)); } catch (x) { e.textContent = /cancel|not allowed/i.test(x.message) ? 'Passkey cancelled' : x.message; }
+      };
     };
     const chooser = signin;
 

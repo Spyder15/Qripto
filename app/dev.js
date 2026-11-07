@@ -30,4 +30,9 @@ const DEPLOYER_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7b
   const rate = Number(process.env.RATE || 98.76); // INR per USDC, fixed for the demo
   await start({ rpc: RPC, escrow, usdc, attestorKey: ATTESTOR_KEY, arbiterKey: ARBITER_KEY, rate, chainId: Number(chainId), proxyRpc: true, port: Number(process.env.PORT || 8788) });
   console.log(`payer:  http://localhost:${process.env.PORT || 8788}/\nLP:     http://localhost:${process.env.PORT || 8788}/lp\nescrow: ${escrow}`);
+  // Hosted demo has no human LP, so optionally run the mock-payout LP bot alongside.
+  if (process.env.AUTO_LP) {
+    const bot = spawn('node', [require('node:path').join(__dirname, 'lp-bot.js')], { stdio: 'inherit', env: { ...process.env, APP_URL: `http://localhost:${process.env.PORT || 8788}` } });
+    process.on('exit', () => bot.kill());
+  }
 })();

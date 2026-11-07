@@ -4,3 +4,6 @@ services:
     runtime: docker
     plan: free
     healthCheckPath: /api/config
+    envVars:
+      - key: AUTO_LP
+        value: "1"

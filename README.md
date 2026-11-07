@@ -7,7 +7,7 @@
 **A trust-minimised "Paytm for crypto" prototype.**<br>
 On-chain escrow · staked liquidity providers · a payer app that feels like a normal payments app.
 
-[**Live demo**](https://identification-successfully-tribute-continuity.trycloudflare.com) · [**How it works**](#how-it-works) · [**Quick start**](#quick-start) · [**Roadmap**](#roadmap) · [**Contribute**](CONTRIBUTING.md)
+[**Live demo**](https://qripto.onrender.com) · [**How it works**](#how-it-works) · [**Quick start**](#quick-start) · [**Roadmap**](#roadmap) · [**Contribute**](CONTRIBUTING.md)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
 [![CI](https://github.com/Spyder15/Qripto/actions/workflows/ci.yml/badge.svg)](https://github.com/Spyder15/Qripto/actions/workflows/ci.yml)
@@ -28,7 +28,7 @@ On-chain escrow · staked liquidity providers · a payer app that feels like a n
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Spyder15/Qripto)
 
-<sub>The live demo runs from a laptop and may be offline. It uses test funds only.</sub>
+<sub>Test funds only. The free demo sleeps when idle, so the first load can take about a minute, and its chain resets on every restart.</sub>
 
 ### ▶️ Full flow in 80 seconds
 
